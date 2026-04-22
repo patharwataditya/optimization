@@ -85,8 +85,10 @@ def train_with_optimizer(X_train, y_train, optimizer_name, optimizer):
     )
     
     # Early stopping callback
+    # Handle both 'val_auc' and 'val_AUC' naming conventions
+    val_auc_monitor = 'val_auc' if 'val_auc' in history.history else 'val_AUC'
     early_stop = EarlyStopping(
-        monitor='val_auc',
+        monitor=val_auc_monitor,
         patience=NN_EARLY_STOPPING_PATIENCE,
         restore_best_weights=True,
         mode='max'
@@ -103,9 +105,11 @@ def train_with_optimizer(X_train, y_train, optimizer_name, optimizer):
     )
     
     # Find best epoch (highest validation AUC)
-    best_epoch = np.argmax(history.history['val_auc']) + 1
+    # Handle both 'val_auc' and 'val_AUC' naming conventions
+    val_auc_key = 'val_auc' if 'val_auc' in history.history else 'val_AUC'
+    best_epoch = np.argmax(history.history[val_auc_key]) + 1
     best_val_acc = history.history['val_accuracy'][best_epoch - 1]
-    best_val_auc = history.history['val_auc'][best_epoch - 1]
+    best_val_auc = history.history[val_auc_key][best_epoch - 1]
     
     print(f"{optimizer_name} - Best validation accuracy: {best_val_acc:.4f}")
     print(f"{optimizer_name} - Best validation AUC: {best_val_auc:.4f}")
