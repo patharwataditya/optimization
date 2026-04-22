@@ -2,22 +2,30 @@
 
 import numpy as np
 import pandas as pd
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout
-from tensorflow.keras.optimizers import SGD, Adam, Adagrad
-from tensorflow.keras.callbacks import EarlyStopping
 import matplotlib.pyplot as plt
-import tensorflow as tf
 import random
 from config import (NN_EPOCHS, NN_BATCH_SIZE, NN_VALIDATION_SPLIT, 
                     NN_EARLY_STOPPING_PATIENCE, RANDOM_STATE)
+
+# Try to import TensorFlow
+try:
+    import tensorflow as tf
+    from tensorflow.keras.models import Sequential
+    from tensorflow.keras.layers import Dense, Dropout
+    from tensorflow.keras.optimizers import SGD, Adam, Adagrad
+    from tensorflow.keras.callbacks import EarlyStopping
+    TENSORFLOW_AVAILABLE = True
+except ImportError:
+    TENSORFLOW_AVAILABLE = False
+    print("Warning: TensorFlow not available. Neural network functionality will be disabled.")
 
 
 def set_seeds():
     """Set seeds for reproducibility."""
     np.random.seed(RANDOM_STATE)
-    tf.random.set_seed(RANDOM_STATE)
     random.seed(RANDOM_STATE)
+    if TENSORFLOW_AVAILABLE:
+        tf.random.set_seed(RANDOM_STATE)
 
 
 def create_neural_network(input_dim):
@@ -30,6 +38,9 @@ def create_neural_network(input_dim):
     Returns:
         keras.Model: Compiled neural network model.
     """
+    if not TENSORFLOW_AVAILABLE:
+        return None
+        
     model = Sequential([
         Dense(64, activation='relu', input_shape=(input_dim,)),
         Dropout(0.3),
@@ -54,6 +65,10 @@ def train_with_optimizer(X_train, y_train, optimizer_name, optimizer):
     Returns:
         tuple: (model, history, best_epoch)
     """
+    if not TENSORFLOW_AVAILABLE:
+        print(f"Skipping {optimizer_name} training - TensorFlow not available")
+        return None, None, 0
+        
     print(f"Training with {optimizer_name} optimizer...")
     
     # Set seeds for reproducibility
@@ -114,6 +129,10 @@ def compare_optimizers(X_train, y_train):
     print("NEURAL NETWORK OPTIMIZER COMPARISON")
     print("="*60)
     
+    if not TENSORFLOW_AVAILABLE:
+        print("Skipping neural network comparison - TensorFlow not available")
+        return {}, None
+    
     # Define optimizers
     optimizers = {
         'SGD': SGD(learning_rate=0.01, momentum=0.9),
@@ -127,14 +146,15 @@ def compare_optimizers(X_train, y_train):
     # Train with each optimizer
     for name, optimizer in optimizers.items():
         model, history, best_epoch = train_with_optimizer(X_train, y_train, name, optimizer)
-        results[name] = {
-            'model': model,
-            'val_accuracy': history.history['val_accuracy'][best_epoch - 1],
-            'val_auc': history.history['val_auc'][best_epoch - 1],
-            'epochs_run': len(history.history['loss']),
-            'best_epoch': best_epoch
-        }
-        histories[name] = history
+        if model is not None and history is not None:
+            results[name] = {
+                'model': model,
+                'val_accuracy': history.history['val_accuracy'][best_epoch - 1],
+                'val_auc': history.history['val_auc'][best_epoch - 1],
+                'epochs_run': len(history.history['loss']),
+                'best_epoch': best_epoch
+            }
+            histories[name] = history
     
     # Plot training vs validation loss curves
     plt.figure(figsize=(12, 8))
@@ -189,8 +209,12 @@ def compare_optimizers(X_train, y_train):
         print(f"{name:<15} {result['val_accuracy']:<15.4f} {result['val_auc']:<10.4f} {result['epochs_run']:<10}")
     
     # Find best optimizer
-    best_optimizer = max(results.keys(), key=lambda k: results[k]['val_auc'])
-    print(f"\nBest optimizer: {best_optimizer} (AUC: {results[best_optimizer]['val_auc']:.4f})")
+    if results:
+        best_optimizer = max(results.keys(), key=lambda k: results[k]['val_auc'])
+        print(f"\nBest optimizer: {best_optimizer} (AUC: {results[best_optimizer]['val_auc']:.4f})")
+    else:
+        best_optimizer = None
+        print("\nNo optimizers were trained successfully")
     
     return results, best_optimizer
 
@@ -211,6 +235,17 @@ def evaluate_best_nn(results, best_optimizer, X_test, y_test):
     print("="*60)
     print(f"EVALUATING BEST NEURAL NETWORK ({best_optimizer})")
     print("="*60)
+    
+    if not TENSORFLOW_AVAILABLE or best_optimizer is None or best_optimizer not in results:
+        print("Skipping neural network evaluation - TensorFlow not available or no best optimizer")
+        # Return dummy metrics
+        return {
+            'accuracy': 0.0,
+            'precision': 0.0,
+            'recall': 0.0,
+            'f1_score': 0.0,
+            'auc_roc': 0.0
+        }
     
     # Get best model
     best_model = results[best_optimizer]['model']

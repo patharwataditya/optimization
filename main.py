@@ -24,11 +24,15 @@ def check_and_import_libraries():
         'optuna': "pip install optuna",
         'pyswarms': "pip install pyswarms",
         'deap': "pip install deap",
+    }
+    
+    optional_libs = {
         'tensorflow': "pip install tensorflow",
     }
     
     missing_libs = []
     
+    # Check required libraries
     for lib, install_cmd in required_libs.items():
         try:
             if lib == 'sklearn':
@@ -40,6 +44,14 @@ def check_and_import_libraries():
         except ImportError:
             missing_libs.append((lib, install_cmd))
     
+    # Check optional libraries
+    missing_optional = []
+    for lib, install_cmd in optional_libs.items():
+        try:
+            __import__(lib)
+        except ImportError:
+            missing_optional.append((lib, install_cmd))
+    
     if missing_libs:
         print("❌ Missing required libraries:")
         for lib, cmd in missing_libs:
@@ -48,6 +60,11 @@ def check_and_import_libraries():
         sys.exit(1)
     else:
         print("✅ All required libraries are installed.")
+        if missing_optional:
+            print("⚠️  Optional libraries missing:")
+            for lib, cmd in missing_optional:
+                print(f"   - {lib}: {cmd}")
+            print("Some features may be disabled.")
 
 # Check libraries before proceeding
 check_and_import_libraries()
