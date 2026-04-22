@@ -23,7 +23,7 @@ GA_MUTATION_PROB = 0.2
 GA_TOURNAMENT_SIZE = 3
 
 # Optuna parameters
-OPTUNA_TRIALS = 100
+OPTUNA_TRIALS = 20  # Reduced from 100 for faster execution
 OPTUNA_SEED = 42
 
 # Neural Network parameters
