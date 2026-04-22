@@ -18,13 +18,16 @@ def load_data():
     # Create plots directory if it doesn't exist
     os.makedirs('plots', exist_ok=True)
     
-    # Since we don't have the actual dataset file, we'll create a function
-    # that would load it. In a real scenario, you would have the processed.cleveland.data file.
-    print("Note: In a real implementation, this would load processed.cleveland.data")
-    print("For now, we'll simulate the data loading process.")
-    
-    # Returning None to indicate that we need to download the actual dataset
-    return None
+    try:
+        # Try to load the real dataset first
+        df = pd.read_csv('Heart_disease_cleveland_new.csv')
+        print("Successfully loaded the Heart Disease Cleveland dataset.")
+        print(f"Dataset shape: {df.shape}")
+        return df
+    except FileNotFoundError:
+        print("Heart_disease_cleveland_new.csv not found.")
+        print("Using sample data for demonstration.")
+        return load_sample_data()
 
 
 def load_sample_data():
@@ -54,21 +57,8 @@ def load_sample_data():
         'slope': np.random.randint(0, 3, n_samples),  # slope of peak exercise ST segment
         'ca': np.random.randint(0, 4, n_samples),  # number of major vessels
         'thal': np.random.randint(0, 4, n_samples),  # thalassemia
+        'target': np.random.randint(0, 2, n_samples)  # heart disease target
     }
-    
-    # Create target with some correlation to features
-    target_prob = (
-        0.1 +
-        0.1 * (data['age'] > 55) +
-        0.15 * data['sex'] +
-        0.2 * (data['cp'] > 1) +
-        0.05 * (data['trestbps'] > 140) +
-        0.05 * (data['chol'] > 240) +
-        0.1 * data['exang'] +
-        0.1 * (data['oldpeak'] > 2) +
-        0.1 * (data['thalach'] < 150)
-    )
-    data[TARGET_NAME] = np.random.binomial(1, np.clip(target_prob, 0, 1), n_samples)
     
     df = pd.DataFrame(data)
     return df
@@ -99,12 +89,13 @@ def explore_data(df):
     print("\nMissing values count:")
     print(df.isnull().sum())
     
-    # Binarize target
+    # Binarize target for the actual dataset, values > 0 indicate presence of heart disease
     print(f"\nTarget distribution before binarization:")
     print(df[TARGET_NAME].value_counts().sort_index())
     
-    # For the actual dataset, values > 0 indicate presence of heart disease
-    # In our sample data, we already have 0/1 values
+    # Binarize target: 0 remains 0 (no disease), values > 0 become 1 (disease present)
+    df[TARGET_NAME] = (df[TARGET_NAME] > 0).astype(int)
+    
     print(f"\nTarget distribution after binarization:")
     print(df[TARGET_NAME].value_counts().sort_index())
     
@@ -136,16 +127,21 @@ def explore_data(df):
     plt.close()
     
     # Boxplots for all numeric features vs target
-    fig, axes = plt.subplots(4, 4, figsize=(16, 16))
+    feature_names = [col for col in df.columns if col != TARGET_NAME]
+    n_features = len(feature_names)
+    n_cols = 4
+    n_rows = (n_features + n_cols - 1) // n_cols
+    
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(16, 4*n_rows))
     axes = axes.flatten()
     
-    for i, feature in enumerate(FEATURE_NAMES):
+    for i, feature in enumerate(feature_names):
         if i < len(axes):
             sns.boxplot(data=df, x=TARGET_NAME, y=feature, ax=axes[i])
             axes[i].set_title(f'{feature} vs Heart Disease')
     
     # Remove empty subplots
-    for i in range(len(FEATURE_NAMES), len(axes)):
+    for i in range(len(feature_names), len(axes)):
         fig.delaxes(axes[i])
     
     plt.suptitle('Boxplots of Features vs Heart Disease Target', fontsize=16)

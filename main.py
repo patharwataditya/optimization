@@ -76,7 +76,7 @@ def main():
     
     # STEP 2: Data Loading and Exploration
     print("\n📥 STEP 2: DATA LOADING AND EXPLORATION")
-    df = load_sample_data()  # In real implementation, use load_data() to load actual dataset
+    df = load_data()  # Load the actual dataset
     explore_data(df)
     print("✅ Step 2 complete.")
     
