@@ -8,6 +8,7 @@ from config import (NN_EPOCHS, NN_BATCH_SIZE, NN_VALIDATION_SPLIT,
                     NN_EARLY_STOPPING_PATIENCE, RANDOM_STATE)
 
 # Try to import TensorFlow
+TENSORFLOW_AVAILABLE = False
 try:
     import tensorflow as tf
     from tensorflow.keras.models import Sequential
@@ -15,9 +16,11 @@ try:
     from tensorflow.keras.optimizers import SGD, Adam, Adagrad
     from tensorflow.keras.callbacks import EarlyStopping
     TENSORFLOW_AVAILABLE = True
-except ImportError:
-    TENSORFLOW_AVAILABLE = False
-    print("Warning: TensorFlow not available. Neural network functionality will be disabled.")
+    print(f"TensorFlow version {tf.__version__} detected and loaded successfully.")
+except ImportError as e:
+    print(f"Warning: TensorFlow not available ({e}). Neural network functionality will be disabled.")
+except Exception as e:
+    print(f"Warning: TensorFlow could not be initialized ({e}). Neural network functionality will be disabled.")
 
 
 def set_seeds():
