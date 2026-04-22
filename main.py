@@ -53,7 +53,7 @@ def check_and_import_libraries():
 check_and_import_libraries()
 
 # Import our modules
-from data_loader import load_sample_data, explore_data
+from data_loader import load_data, load_sample_data, explore_data
 from preprocessor import preprocess_pipeline
 from feature_selection import pso_feature_selection, ga_feature_selection, compare_feature_selection_methods, apply_feature_selection
 from models import train_and_evaluate_models
