@@ -88,14 +88,8 @@ def train_with_optimizer(X_train, y_train, optimizer_name, optimizer):
     )
     
     # Early stopping callback
-    # Handle both 'val_auc' and 'val_AUC' naming conventions
-    val_auc_monitor = 'val_auc' if 'val_auc' in history.history else 'val_AUC'
-    early_stop = EarlyStopping(
-        monitor=val_auc_monitor,
-        patience=NN_EARLY_STOPPING_PATIENCE,
-        restore_best_weights=True,
-        mode='max'
-    )
+    # Note: We're not using early stopping to allow full training for comparison
+    # Early stopping is handled post-training for analysis
     
     # Train model
     history = model.fit(
@@ -103,11 +97,9 @@ def train_with_optimizer(X_train, y_train, optimizer_name, optimizer):
         epochs=NN_EPOCHS,
         batch_size=NN_BATCH_SIZE,
         validation_split=NN_VALIDATION_SPLIT,
-        callbacks=[early_stop],
         verbose=0
     )
     
-    # Find best epoch (highest validation AUC)
     # Handle both 'val_auc' and 'val_AUC' naming conventions
     val_auc_key = 'val_auc' if 'val_auc' in history.history else 'val_AUC'
     best_epoch = np.argmax(history.history[val_auc_key]) + 1
