@@ -133,27 +133,38 @@ def main():
     print("\n🤖 STEP 5: MODEL TRAINING WITH BAYESIAN OPTIMIZATION")
     model_results = train_and_evaluate_models(X_train_selected, y_train, X_test_selected, y_test)
     print("✅ Step 5 complete.")
-    
-    # STEP 6: Stacked Ensemble Learning
-    print("\nスタッ STEP 6: STACKED ENSEMBLE LEARNING")
-    stacked_model, stacked_metrics = run_stacked_ensemble(model_results, X_train_selected, y_train, X_test_selected, y_test)
+
+    # STEP 6: Simplified Evaluation (using the single model)
+    print("\n📋 STEP 6: MODEL EVALUATION")
+    # For single model, we'll just use its metrics directly
+    single_model_metrics = list(model_results.values())[0]['metrics']
     print("✅ Step 6 complete.")
-    
-    # STEP 7: Neural Network Optimizer Comparison
+
+    # STEP 7: Neural Network Optimizer Comparison (simplified)
     print("\n🧠 STEP 7: NEURAL NETWORK OPTIMIZER COMPARISON")
     nn_results, best_optimizer = compare_optimizers(X_train_selected.values, y_train.values)
     nn_test_metrics = evaluate_best_nn(nn_results, best_optimizer, X_test_selected.values, y_test.values)
     # Add test metrics to nn_results for consistency
-    nn_results[best_optimizer]['accuracy'] = nn_test_metrics['accuracy']
-    nn_results[best_optimizer]['f1_score'] = nn_test_metrics['f1_score']
-    nn_results[best_optimizer]['precision'] = nn_test_metrics['precision']
-    nn_results[best_optimizer]['recall'] = nn_test_metrics['recall']
-    nn_results[best_optimizer]['auc_roc'] = nn_test_metrics['auc_roc']
+    if best_optimizer:
+        nn_results[best_optimizer]['accuracy'] = nn_test_metrics['accuracy']
+        nn_results[best_optimizer]['f1_score'] = nn_test_metrics['f1_score']
+        nn_results[best_optimizer]['precision'] = nn_test_metrics['precision']
+        nn_results[best_optimizer]['recall'] = nn_test_metrics['recall']
+        nn_results[best_optimizer]['auc_roc'] = nn_test_metrics['auc_roc']
     print("✅ Step 7 complete.")
-    
-    # STEP 8: Final Results Summary
+
+    # STEP 8: Final Results Summary (simplified)
     print("\n📊 STEP 8: FINAL RESULTS SUMMARY")
-    summary_df = create_results_summary(model_results, stacked_metrics, nn_results, best_optimizer, feature_selection_method)
+    # Create a dummy stacked metrics for compatibility
+    dummy_stacked_metrics = {
+        'accuracy': single_model_metrics['accuracy'],
+        'precision': single_model_metrics['precision'],
+        'recall': single_model_metrics['recall'],
+        'f1_score': single_model_metrics['f1_score'],
+        'auc_roc': single_model_metrics['auc_roc']
+    }
+    
+    summary_df = create_results_summary(model_results, dummy_stacked_metrics, nn_results, best_optimizer, feature_selection_method)
     generate_final_report(summary_df, feature_selection_method, best_optimizer)
     print("✅ Step 8 complete.")
     

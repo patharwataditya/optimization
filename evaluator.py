@@ -66,8 +66,17 @@ def create_results_summary(model_results, stacked_results, nn_results, best_opti
     print(summary_df.to_string(index=False, float_format='%.4f'))
     
     # Find best models
-    best_individual_idx = summary_df[:-2]['F1-Score'].idxmax()  # Exclude ensemble and NN
-    best_individual_model = summary_df.loc[best_individual_idx, 'Model']
+    # Handle case when we have fewer models
+    if len(summary_df) >= 3:
+        # Exclude ensemble and NN if they exist
+        models_for_individual = summary_df[:-2] if len(summary_df) > 2 else summary_df
+        best_individual_idx = models_for_individual['F1-Score'].idxmax()
+        best_individual_model = summary_df.loc[best_individual_idx, 'Model']
+    else:
+        # Just take the first model as best individual
+        best_individual_model = summary_df.iloc[0]['Model']
+        best_individual_idx = summary_df.index[0]
+    
     best_overall_idx = summary_df['F1-Score'].idxmax()
     best_overall_model = summary_df.loc[best_overall_idx, 'Model']
     

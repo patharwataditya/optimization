@@ -3,10 +3,7 @@
 import numpy as np
 import pandas as pd
 import optuna
-from sklearn.linear_model import LogisticRegression
-from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
-from xgboost import XGBClassifier
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.metrics import (accuracy_score, precision_score, recall_score, 
                              f1_score, roc_auc_score, roc_curve)
@@ -80,93 +77,6 @@ def evaluate_model(model, X_train, y_train, X_test, y_test, model_name):
     return metrics, model
 
 
-def tune_logistic_regression(X_train, y_train):
-    """
-    Tune Logistic Regression using Optuna.
-    
-    Args:
-        X_train (pd.DataFrame or np.array): Training features.
-        y_train (pd.Series or np.array): Training targets.
-        
-    Returns:
-        dict: Best parameters and model.
-    """
-    print("="*60)
-    print("TUNING LOGISTIC REGRESSION")
-    print("="*60)
-    
-    def objective(trial):
-        # Hyperparameter search space
-        params = {
-            'C': trial.suggest_float('C', 0.01, 10.0, log=True),
-            'solver': trial.suggest_categorical('solver', ['lbfgs', 'liblinear']),
-            'max_iter': 1000,
-            'random_state': RANDOM_STATE
-        }
-        
-        # Create model
-        model = LogisticRegression(**params)
-        
-        # Cross-validation
-        skf = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE)
-        scores = cross_val_score(model, X_train, y_train, cv=skf, scoring='f1_macro')
-        
-        return np.mean(scores)
-    
-    # Create study and optimize
-    study = optuna.create_study(direction='maximize', sampler=optuna.samplers.TPESampler(seed=OPTUNA_SEED))
-    study.optimize(objective, n_trials=OPTUNA_TRIALS)
-    
-    print(f"Best Logistic Regression F1-Score: {study.best_value:.4f}")
-    print(f"Best parameters: {study.best_params}")
-    
-    return study.best_params
-
-
-def tune_svm(X_train, y_train):
-    """
-    Tune Support Vector Machine using Optuna.
-    
-    Args:
-        X_train (pd.DataFrame or np.array): Training features.
-        y_train (pd.Series or np.array): Training targets.
-        
-    Returns:
-        dict: Best parameters and model.
-    """
-    print("="*60)
-    print("TUNING SUPPORT VECTOR MACHINE")
-    print("="*60)
-    
-    def objective(trial):
-        # Hyperparameter search space
-        params = {
-            'C': trial.suggest_float('C', 0.1, 100.0, log=True),
-            'gamma': trial.suggest_float('gamma', 1e-4, 1.0, log=True),
-            'kernel': trial.suggest_categorical('kernel', ['rbf', 'poly']),
-            'random_state': RANDOM_STATE,
-            'probability': True  # Needed for predict_proba
-        }
-        
-        # Create model
-        model = SVC(**params)
-        
-        # Cross-validation
-        skf = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE)
-        scores = cross_val_score(model, X_train, y_train, cv=skf, scoring='f1_macro')
-        
-        return np.mean(scores)
-    
-    # Create study and optimize
-    study = optuna.create_study(direction='maximize', sampler=optuna.samplers.TPESampler(seed=OPTUNA_SEED))
-    study.optimize(objective, n_trials=OPTUNA_TRIALS)
-    
-    print(f"Best SVM F1-Score: {study.best_value:.4f}")
-    print(f"Best parameters: {study.best_params}")
-    
-    return study.best_params
-
-
 def tune_random_forest(X_train, y_train):
     """
     Tune Random Forest using Optuna.
@@ -211,54 +121,9 @@ def tune_random_forest(X_train, y_train):
     return study.best_params
 
 
-def tune_xgboost(X_train, y_train):
-    """
-    Tune XGBoost using Optuna.
-    
-    Args:
-        X_train (pd.DataFrame or np.array): Training features.
-        y_train (pd.Series or np.array): Training targets.
-        
-    Returns:
-        dict: Best parameters and model.
-    """
-    print("="*60)
-    print("TUNING XGBOOST")
-    print("="*60)
-    
-    def objective(trial):
-        # Hyperparameter search space
-        params = {
-            'n_estimators': trial.suggest_int('n_estimators', 50, 300),
-            'max_depth': trial.suggest_int('max_depth', 3, 10),
-            'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3, log=True),
-            'subsample': trial.suggest_float('subsample', 0.6, 1.0),
-            'colsample_bytree': trial.suggest_float('colsample_bytree', 0.6, 1.0),
-            'random_state': RANDOM_STATE
-        }
-        
-        # Create model
-        model = XGBClassifier(**params)
-        
-        # Cross-validation
-        skf = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE)
-        scores = cross_val_score(model, X_train, y_train, cv=skf, scoring='f1_macro')
-        
-        return np.mean(scores)
-    
-    # Create study and optimize
-    study = optuna.create_study(direction='maximize', sampler=optuna.samplers.TPESampler(seed=OPTUNA_SEED))
-    study.optimize(objective, n_trials=OPTUNA_TRIALS)
-    
-    print(f"Best XGBoost F1-Score: {study.best_value:.4f}")
-    print(f"Best parameters: {study.best_params}")
-    
-    return study.best_params
-
-
 def train_and_evaluate_models(X_train, y_train, X_test, y_test):
     """
-    Train and evaluate all models with Optuna tuning.
+    Train and evaluate Random Forest model with Optuna tuning.
     
     Args:
         X_train (pd.DataFrame): Training features.
@@ -267,10 +132,10 @@ def train_and_evaluate_models(X_train, y_train, X_test, y_test):
         y_test (pd.Series): Test targets.
         
     Returns:
-        dict: Dictionary containing trained models and their metrics.
+        dict: Dictionary containing trained model and its metrics.
     """
     print("="*60)
-    print("TRAINING AND EVALUATING MODELS")
+    print("TRAINING AND EVALUATING MODEL")
     print("="*60)
     
     # Create plots directory if it doesn't exist
@@ -278,40 +143,8 @@ def train_and_evaluate_models(X_train, y_train, X_test, y_test):
     
     results = {}
     
-    # 1. Logistic Regression
-    print("\n1. Logistic Regression")
-    lr_params = tune_logistic_regression(X_train, y_train)
-    lr_model = LogisticRegression(**lr_params, max_iter=1000)
-    lr_metrics, lr_trained = evaluate_model(lr_model, X_train, y_train, X_test, y_test, "Logistic Regression")
-    results['Logistic Regression'] = {
-        'model': lr_trained,
-        'params': lr_params,
-        'metrics': lr_metrics
-    }
-    print(f"Test Accuracy: {lr_metrics['accuracy']:.4f}")
-    print(f"Test F1-Score: {lr_metrics['f1_score']:.4f}")
-    print(f"Test Precision: {lr_metrics['precision']:.4f}")
-    print(f"Test Recall: {lr_metrics['recall']:.4f}")
-    print(f"Test AUC-ROC: {lr_metrics['auc_roc']:.4f}")
-    
-    # 2. SVM
-    print("\n2. Support Vector Machine")
-    svm_params = tune_svm(X_train, y_train)
-    svm_model = SVC(**svm_params, probability=True)
-    svm_metrics, svm_trained = evaluate_model(svm_model, X_train, y_train, X_test, y_test, "SVM")
-    results['SVM'] = {
-        'model': svm_trained,
-        'params': svm_params,
-        'metrics': svm_metrics
-    }
-    print(f"Test Accuracy: {svm_metrics['accuracy']:.4f}")
-    print(f"Test F1-Score: {svm_metrics['f1_score']:.4f}")
-    print(f"Test Precision: {svm_metrics['precision']:.4f}")
-    print(f"Test Recall: {svm_metrics['recall']:.4f}")
-    print(f"Test AUC-ROC: {svm_metrics['auc_roc']:.4f}")
-    
-    # 3. Random Forest
-    print("\n3. Random Forest")
+    # Random Forest
+    print("\nRandom Forest")
     rf_params = tune_random_forest(X_train, y_train)
     rf_model = RandomForestClassifier(**rf_params)
     rf_metrics, rf_trained = evaluate_model(rf_model, X_train, y_train, X_test, y_test, "Random Forest")
@@ -325,22 +158,6 @@ def train_and_evaluate_models(X_train, y_train, X_test, y_test):
     print(f"Test Precision: {rf_metrics['precision']:.4f}")
     print(f"Test Recall: {rf_metrics['recall']:.4f}")
     print(f"Test AUC-ROC: {rf_metrics['auc_roc']:.4f}")
-    
-    # 4. XGBoost
-    print("\n4. XGBoost")
-    xgb_params = tune_xgboost(X_train, y_train)
-    xgb_model = XGBClassifier(**xgb_params)
-    xgb_metrics, xgb_trained = evaluate_model(xgb_model, X_train, y_train, X_test, y_test, "XGBoost")
-    results['XGBoost'] = {
-        'model': xgb_trained,
-        'params': xgb_params,
-        'metrics': xgb_metrics
-    }
-    print(f"Test Accuracy: {xgb_metrics['accuracy']:.4f}")
-    print(f"Test F1-Score: {xgb_metrics['f1_score']:.4f}")
-    print(f"Test Precision: {xgb_metrics['precision']:.4f}")
-    print(f"Test Recall: {xgb_metrics['recall']:.4f}")
-    print(f"Test AUC-ROC: {xgb_metrics['auc_roc']:.4f}")
     
     return results
 
