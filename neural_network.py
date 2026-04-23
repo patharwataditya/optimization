@@ -12,7 +12,7 @@ TENSORFLOW_AVAILABLE = False
 try:
     import tensorflow as tf
     from tensorflow.keras.models import Sequential
-    from tensorflow.keras.layers import Dense, Dropout
+    from tensorflow.keras.layers import Dense, Dropout, Input
     from tensorflow.keras.optimizers import SGD, Adam, Adagrad
     from tensorflow.keras.callbacks import EarlyStopping
     TENSORFLOW_AVAILABLE = True
@@ -45,7 +45,8 @@ def create_neural_network(input_dim):
         return None
         
     model = Sequential([
-        Dense(64, activation='relu', input_shape=(input_dim,)),
+        Input(shape=(input_dim,)),
+        Dense(64, activation='relu'),
         Dropout(0.3),
         Dense(32, activation='relu'),
         Dropout(0.2),
@@ -53,6 +54,32 @@ def create_neural_network(input_dim):
     ])
     
     return model
+
+
+def get_history_metric(history_dict, preferred_key, fallback_keys):
+    """
+    Return a metric series from Keras history, tolerating version-specific key names.
+
+    Args:
+        history_dict (dict): ``history.history`` from Keras training.
+        preferred_key (str): Preferred metric name.
+        fallback_keys (list[str]): Alternate names to try.
+
+    Returns:
+        tuple[str, list]: The resolved metric key and its recorded values.
+
+    Raises:
+        KeyError: If none of the requested metric names are present.
+    """
+    for key in [preferred_key, *fallback_keys]:
+        if key in history_dict:
+            return key, history_dict[key]
+
+    available = ", ".join(sorted(history_dict.keys()))
+    raise KeyError(
+        f"Metric '{preferred_key}' not found in training history. "
+        f"Available keys: {available}"
+    )
 
 
 def train_with_optimizer(X_train, y_train, optimizer_name, optimizer):
@@ -66,7 +93,7 @@ def train_with_optimizer(X_train, y_train, optimizer_name, optimizer):
         optimizer: Keras optimizer object.
         
     Returns:
-        tuple: (model, history, best_epoch)
+        tuple: (model, history, best_epoch, val_auc_key)
     """
     if not TENSORFLOW_AVAILABLE:
         print(f"Skipping {optimizer_name} training - TensorFlow not available")
@@ -81,10 +108,11 @@ def train_with_optimizer(X_train, y_train, optimizer_name, optimizer):
     model = create_neural_network(X_train.shape[1])
     
     # Compile model
+    auc_metric = tf.keras.metrics.AUC(name='auc')
     model.compile(
         optimizer=optimizer,
         loss='binary_crossentropy',
-        metrics=['accuracy', 'AUC']
+        metrics=['accuracy', auc_metric]
     )
     
     # Early stopping callback
@@ -100,17 +128,27 @@ def train_with_optimizer(X_train, y_train, optimizer_name, optimizer):
         verbose=0
     )
     
-    # Handle both 'val_auc' and 'val_AUC' naming conventions
-    val_auc_key = 'val_auc' if 'val_auc' in history.history else 'val_AUC'
-    best_epoch = np.argmax(history.history[val_auc_key]) + 1
-    best_val_acc = history.history['val_accuracy'][best_epoch - 1]
-    best_val_auc = history.history[val_auc_key][best_epoch - 1]
+    history_dict = history.history
+    val_auc_key, val_auc_values = get_history_metric(
+        history_dict,
+        'val_auc',
+        ['val_AUC']
+    )
+    _, val_accuracy_values = get_history_metric(
+        history_dict,
+        'val_accuracy',
+        ['val_acc']
+    )
+
+    best_epoch = np.argmax(val_auc_values) + 1
+    best_val_acc = val_accuracy_values[best_epoch - 1]
+    best_val_auc = val_auc_values[best_epoch - 1]
     
     print(f"{optimizer_name} - Best validation accuracy: {best_val_acc:.4f}")
     print(f"{optimizer_name} - Best validation AUC: {best_val_auc:.4f}")
     print(f"{optimizer_name} - Epochs run: {len(history.history['loss'])}")
     
-    return model, history, best_epoch
+    return model, history, best_epoch, val_auc_key
 
 
 def compare_optimizers(X_train, y_train):
@@ -141,19 +179,34 @@ def compare_optimizers(X_train, y_train):
     
     results = {}
     histories = {}
+    metric_series = {}
     
     # Train with each optimizer
     for name, optimizer in optimizers.items():
-        model, history, best_epoch = train_with_optimizer(X_train, y_train, name, optimizer)
+        model, history, best_epoch, val_auc_key = train_with_optimizer(X_train, y_train, name, optimizer)
         if model is not None and history is not None:
+            _, val_accuracy_values = get_history_metric(
+                history.history,
+                'val_accuracy',
+                ['val_acc']
+            )
+            accuracy_key, accuracy_values = get_history_metric(
+                history.history,
+                'accuracy',
+                ['acc']
+            )
             results[name] = {
                 'model': model,
-                'val_accuracy': history.history['val_accuracy'][best_epoch - 1],
-                'val_auc': history.history['val_auc'][best_epoch - 1],
+                'val_accuracy': val_accuracy_values[best_epoch - 1],
+                'val_auc': history.history[val_auc_key][best_epoch - 1],
                 'epochs_run': len(history.history['loss']),
                 'best_epoch': best_epoch
             }
             histories[name] = history
+            metric_series[name] = {
+                'accuracy_values': accuracy_values,
+                'val_accuracy_values': val_accuracy_values
+            }
     
     # Plot training vs validation loss curves
     plt.figure(figsize=(12, 8))
@@ -179,8 +232,8 @@ def compare_optimizers(X_train, y_train):
     
     # Plot accuracy
     plt.subplot(2, 2, 3)
-    for name, history in histories.items():
-        plt.plot(history.history['accuracy'], label=f'{name} - Training')
+    for name in histories:
+        plt.plot(metric_series[name]['accuracy_values'], label=f'{name} - Training')
     plt.title('Model Training Accuracy')
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
@@ -188,8 +241,8 @@ def compare_optimizers(X_train, y_train):
     plt.grid(True)
     
     plt.subplot(2, 2, 4)
-    for name, history in histories.items():
-        plt.plot(history.history['val_accuracy'], label=f'{name} - Validation')
+    for name in histories:
+        plt.plot(metric_series[name]['val_accuracy_values'], label=f'{name} - Validation')
     plt.title('Model Validation Accuracy')
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
